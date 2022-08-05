@@ -5,6 +5,7 @@ import argparse
 import sys
 import json
 from urllib.parse import urlparse
+import os
 
 # cli arguments
 parser = argparse.ArgumentParser()
@@ -15,10 +16,16 @@ args = parser.parse_args()
 url = args.url
 wordlist = args.wordlist
 domain = urlparse(url).netloc
-print(domain)
+
+output_file = f"{domain}.json"
+output_exists = os.path.exists(output_file)
+
+
 # check supplied arguments
 word_args = ["-w", "--wordlist", "--w", "-wordlist"]
 url_args = ["-u", "--u", "-url", "--url"]
+
+
 
 # determine givin flags
 def param_parse():
@@ -48,6 +55,31 @@ def mode_deter():
     global mode
     if url_args == True and word_args == True:
         mode = ("brute")
+        if output_exists:
+            string = open(f"{domain}.json", "r")
+            string = string.read()
+
+            if args.wordlist in string:
+                percent = string.find("%")
+                percent = percent - 2
+                percent = int(string[percent:string.find("%")])
+
+                if percent == 00:
+                    yesno = input(f"{args.wordlist} has already been completed are you sure you want to use it[y/N]: ")
+                    yesno = yesno.lower()
+                    yesno = yesno.strip()
+                    yesno = yesno.strip("abcdefghijklmopqrstuvwxz")
+                    if yesno == "n":
+                        exit()
+                    elif yesno == "y":
+                        pass
+                    else:
+                        print("invalid input")
+                        exit()
+                        
+                elif percent < 100:
+                    print("wordlist not completed")
+
 
     elif url_args == True and word_args == False:
         mode = ("crawl")
@@ -149,7 +181,7 @@ def main_crawl(url):
     emails_json = json.dumps(emails, indent = 6)
     links_json = json.dumps(links, indent = 6)
 
-    output_file = open("testout.json", "w")
+    output_file = open(f"{domain}.json", "w")
 
     output_file.write(f"directorys = {directorys_json}\n")
     output_file.write("\n")
@@ -210,19 +242,31 @@ def crawl_out(links, directorys, emails):
 
 # brute force mode main function
 def main_brute(length, words, url):
+    brute_forced_dirs = []
+    count = 0
     for directory in words:
-
         directory = directory.replace('\n', '')
         test_url = (url + directory)
         req_url = requests.get(test_url)
+        count = count + 1
 
         if req_url.status_code != 404:
+            brute_forced_dirs.append(test_url)
             print(f"[{req_url.status_code}] {req_url.url}")
+
         else:
             print(f'{test_url: <{length}}', end="\r")
             length=len(test_url)
 
     print("\n")
+
+    brute_forced_dirs = json.dumps(brute_forced_dirs, indent = 6)
+    output_file = open(f"{domain}.json", "a")
+    line_sum = sum(1 for line in open(args.wordlist))
+    decimal = count/line_sum
+    decimal = int(decimal * 100)
+    output_file.write(f"wordlist = {args.wordlist} {decimal}% Completed\nbrute_forced_dirs = {brute_forced_dirs}\n")
+    output_file.write("\n")
 
 # edit user supplied url to avoid errors
 def url_fix(mode):

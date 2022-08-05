@@ -6,6 +6,4 @@
 
 - graceful error handling
 - add more features to brute force mode
-- append brute forced dirs to site json file including wordlists used and what %
 
-- produce new json file for each site 
