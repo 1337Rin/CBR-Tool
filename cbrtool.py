@@ -7,53 +7,34 @@ import json
 from urllib.parse import urlparse
 import os
 
-# cli arguments
-parser = argparse.ArgumentParser()
-parser.add_argument("-u", "--url", help="url of host")
+
+parser = argparse.ArgumentParser(
+    description="Crawler/brute forcing tool",
+    epilog="Contributions are welcome: https://github.com/1337Rin/CBR-Tool")
+parser.add_argument("-v", "--verbose", action="store_true", help="enable talkative mode")
+parser.add_argument("-q", "--quiet", action="store_true", help="don't print additional information")
 parser.add_argument("-w", "--wordlist", help="wordlist to use")
+parser.add_argument("url", metavar="URL", help="url of host")
 
 args = parser.parse_args()
 url = args.url
 wordlist = args.wordlist
 domain = urlparse(url).netloc
 
+# if user is a poopyhead, disable both flags
+if args.verbose and args.quiet:
+    args.verbose = False
+    args.quiet = False
+
 output_file = f"{domain}.json"
 output_exists = os.path.exists(output_file)
 
-
-# check supplied arguments
-word_args = ["-w", "--wordlist", "--w", "-wordlist"]
-url_args = ["-u", "--u", "-url", "--url"]
-
-
-
-# determine givin flags
-def param_parse():
-    global word_args
-    global url_args
-
-    if not len(sys.argv) > 1:
-        parser.print_help(sys.stderr)
-        exit()
-
-    for param in word_args:
-        if param in sys.argv:
-            word_args = True
-
-    if word_args != True:
-        word_args = False
-
-    for param in url_args:
-        if param in sys.argv:
-            url_args = True
-
-    if url_args != True:
-        url_args = False
+word_args = (wordlist!="")
 
 # determine mode
 def mode_deter():
     global mode
-    if url_args == True and word_args == True:
+    if word_args == True:
         mode = ("brute")
         if output_exists:
             string = open(f"{domain}.json", "r")
@@ -78,16 +59,12 @@ def mode_deter():
                         exit()
                         
                 elif percent < 100:
-                    print("wordlist not completed")
+                    if not args.quiet: print("wordlist not completed")
 
-
-    elif url_args == True and word_args == False:
+    else:
         mode = ("crawl")
 
-    print(f"[+] using {mode} mode")
-
-param_parse()
-mode_deter()
+    if not args.quiet: print(f"[+] using {mode} mode")
 
 # error handling
 def exceptions(url, mode):
@@ -122,13 +99,13 @@ def main_crawl(url):
     global emails
     global links
     global urls
-    global directorys
+    global directories
     global lvl
 
     if lvl == 0:
         emails = []
         links = []
-        directorys = []
+        directories = []
         urls = []
         place_holder = []
         lvl = lvl + 1
@@ -142,7 +119,7 @@ def main_crawl(url):
         print("\n")
         print("[-] Lost Connection to Host")
         print("[-] Exiting...")
-        crawl_out(links, directorys, emails)
+        crawl_out(links, directories, emails)
         exit()
     soup = BeautifulSoup(reqs.text, 'html.parser')
     for link in soup.find_all('a'):
@@ -161,8 +138,8 @@ def main_crawl(url):
             clean_list(emails)
 
         elif domain in href:
-            directorys.append(href)
-            clean_list(directorys)
+            directories.append(href)
+            clean_list(directories)
 
         elif re.search("http*", href) != None:
             links.append(href)
@@ -170,36 +147,36 @@ def main_crawl(url):
         else:
             slash = re.search("^/", href)
             if slash:
-                directorys.append(href)
-                clean_list(directorys)
+                directories.append(href)
+                clean_list(directories)
             else:
                 href = "/" + href
-                directorys.append(href)
-                clean_list(directorys)
+                directories.append(href)
+                clean_list(directories)
 
-    directorys_json = json.dumps(directorys, indent = 6)
+    directories_json = json.dumps(directories, indent = 6)
     emails_json = json.dumps(emails, indent = 6)
     links_json = json.dumps(links, indent = 6)
 
     output_file = open(f"{domain}.json", "w")
 
-    output_file.write(f"directorys = {directorys_json}\n")
+    output_file.write(f"directories = {directories_json}\n")
     output_file.write("\n")
     output_file.write(f"emails = {emails_json}\n")
     output_file.write("\n")
     output_file.write(f"links = {links_json}\n")
 
 # crawl discovered web pages
-def decend(directorys):
+def decend(directories):
 
-    length = len(directorys[0])
-    for href in directorys:
+    length = len(directories[0])
+    for href in directories:
 
         if domain in href:
             new_url = f"{href}"
 
             print(f'{new_url: <{length}}', end="\r")
-            clean_list(directorys)
+            clean_list(directories)
             main_crawl(new_url)
 
             length=(len(new_url))
@@ -208,37 +185,37 @@ def decend(directorys):
             new_url = f"{url}{href}"
 
             print(f'{new_url: <{length}}', end="\r")
-            clean_list(directorys)
+            clean_list(directories)
             main_crawl(new_url)
 
             length=(len(new_url))
 
-    print("\n[+] finished crawl")
+    if not args.quiet: print("\n[+] finished crawl")
 
 # print crawled output
-def crawl_out(links, directorys, emails):
-    lists = [links, directorys, emails]
-    for x in lists:
-        if x == links:
-            print("")
-            print("[+] links")
-            n = len(links)
-            print(f"[+] count: {n}")
+def crawl_out(links, directories, emails):
+    if not args.quiet:
+        n = len(links)
+        print( "[+] links")
+        print(f"[+] count: {n}")
+    for x in links:
+        print(x)
 
-        elif x == directorys:
-            print("")
-            print("[+] directorys")
-            n = len(directorys)
-            print(f"[+] count: {n}")
+    print()
+    if not args.quiet:
+        n = len(directories)
+        print( "[+] directories")
+        print(f"[+] count: {n}")
+    for x in directories:
+        print(x)
 
-        elif x == emails:
-            print("")
-            print("[+] emails")
-            n = len(emails)
-            print(f"[+] count: {n}")
-
-        for y in x:
-            print(y)
+    print()
+    if not args.quiet:
+        n = len(emails)
+        print( "[+] emails")
+        print(f"[+] count: {n}")
+    for x in emails:
+        print(x)
 
 # brute force mode main function
 def main_brute(length, words, url):
@@ -277,25 +254,28 @@ def url_fix(mode):
             url = (url[0:-1])
     elif mode == "brute":
         if url[-1] != '/':
-            url = url + '/'
+            url += '/'
 
-if mode == "crawl":
 
-    lvl = 0
-
-    url_fix(mode)
-    exceptions(url, mode)
-    main_crawl(url)
-    decend(directorys)
-    crawl_out(links, directorys, emails)
-
-elif mode == "brute":
-    url_fix(mode)
-    exceptions(url, mode)
-
-    with open(wordlist) as wordlist:
-        length = len((wordlist.readline()))
-
-    main_brute(length, words, url)
+mode_deter()
+match mode:
+    case "crawl":
+    
+        lvl = 0
+    
+        url_fix(mode)
+        exceptions(url, mode)
+        main_crawl(url)
+        decend(directories)
+        crawl_out(links, directories, emails)
+    
+    case "brute":
+        url_fix(mode)
+        exceptions(url, mode)
+    
+        with open(wordlist) as wordlist:
+            length = len((wordlist.readline()))
+    
+        main_brute(length, words, url)
     
 exit()
