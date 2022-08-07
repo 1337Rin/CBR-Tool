@@ -17,9 +17,6 @@ url = args.url
 wordlist = args.wordlist
 domain = urlparse(url).netloc
 
-output_file = f"{domain}.json"
-output_exists = os.path.exists(output_file)
-
 
 # check supplied arguments
 word_args = ["-w", "--wordlist", "--w", "-wordlist"]
@@ -55,8 +52,11 @@ def mode_deter():
     global mode
     if url_args == True and word_args == True:
         mode = ("brute")
+        output_file = f"{domain}.brute.json"
+        output_exists = os.path.exists(output_file)
+
         if output_exists:
-            string = open(f"{domain}.json", "r")
+            string = open(f"{domain}.brute.json", "r")
             string = string.read()
 
             if args.wordlist in string:
@@ -69,6 +69,7 @@ def mode_deter():
                     yesno = yesno.lower()
                     yesno = yesno.strip()
                     yesno = yesno.strip("abcdefghijklmopqrstuvwxz")
+                    
                     if yesno == "n":
                         exit()
                     elif yesno == "y":
@@ -83,6 +84,28 @@ def mode_deter():
 
     elif url_args == True and word_args == False:
         mode = ("crawl")
+        output_file = f"{domain}.crawl.json"
+        output_exists = os.path.exists(output_file)
+
+        if output_exists:
+            string = open(f"{domain}.crawl.json", "r")
+            string = string.read()
+
+        if "crawl_finished = 1" in string:
+            yesno = input("This domain has already been crawled to completion are you sure you want to crawl it again[y/N]: ")
+            yesno = yesno.lower()
+            yesno = yesno.strip()
+            yesno = yesno.strip("abcdefghijklmopqrstuvwxz")
+
+            if yesno == "n":
+                exit()
+            elif yesno == "y":
+                pass
+            else:
+                print("invalid input")
+                exit()
+
+
 
     print(f"[+] using {mode} mode")
 
@@ -142,8 +165,11 @@ def main_crawl(url):
         print("\n")
         print("[-] Lost Connection to Host")
         print("[-] Exiting...")
+        output_file = open(f"{domain}.crawl.json", "a")
+        output_file.write("crawl_finished = 0\n\n")
         crawl_out(links, directorys, emails)
         exit()
+
     soup = BeautifulSoup(reqs.text, 'html.parser')
     for link in soup.find_all('a'):
         href = link.get('href')
@@ -160,13 +186,14 @@ def main_crawl(url):
             emails.append(href)
             clean_list(emails)
 
-        elif domain in href:
-            directorys.append(href)
-            clean_list(directorys)
-
         elif re.search("http*", href) != None:
-            links.append(href)
-            clean_list(links)
+            check_href = urlparse(href).netloc
+            if check_href == domain:
+                directorys.append(href)
+                clean_list(directorys)
+            elif check_href != domain:
+                links.append(href)
+                clean_list(links)
         else:
             slash = re.search("^/", href)
             if slash:
@@ -181,13 +208,14 @@ def main_crawl(url):
     emails_json = json.dumps(emails, indent = 6)
     links_json = json.dumps(links, indent = 6)
 
-    output_file = open(f"{domain}.json", "w")
+    output_file = open(f"{domain}.crawl.json", "w")
 
     output_file.write(f"directorys = {directorys_json}\n")
     output_file.write("\n")
     output_file.write(f"emails = {emails_json}\n")
     output_file.write("\n")
     output_file.write(f"links = {links_json}\n")
+    output_file.write("\n")
 
 # crawl discovered web pages
 def decend(directorys):
@@ -213,7 +241,10 @@ def decend(directorys):
 
             length=(len(new_url))
 
+    output_file = open(f"{domain}.crawl.json", "a")
+    output_file.write("crawl_finished = 1\n\n")
     print("\n[+] finished crawl")
+
 
 # print crawled output
 def crawl_out(links, directorys, emails):
@@ -261,7 +292,7 @@ def main_brute(length, words, url):
     print("\n")
 
     brute_forced_dirs = json.dumps(brute_forced_dirs, indent = 6)
-    output_file = open(f"{domain}.json", "a")
+    output_file = open(f"{domain}.brute.json", "a")
     line_sum = sum(1 for line in open(args.wordlist))
     decimal = count/line_sum
     decimal = int(decimal * 100)
