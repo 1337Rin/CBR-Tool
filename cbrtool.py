@@ -8,7 +8,9 @@ from urllib.parse import urlparse
 import os
 
 # cli arguments
-parser = argparse.ArgumentParser()
+parser = argparse.ArgumentParser(
+    description=("CBRTool is a directory bruteforcer and website crawling tool that utilizes progress tracking in clean and easy to read json output"),
+    )
 parser.add_argument("-u", "--url", help="url of host")
 parser.add_argument("-w", "--wordlist", help="wordlist to use")
 
@@ -59,7 +61,7 @@ def mode_deter():
             string = open(f"{domain}.brute.json", "r")
             string = string.read()
 
-            if args.wordlist in string:
+            if os.path.abspath(args.wordlist) in string:
                 percent = string.find("%")
                 percent = percent - 2
                 percent = int(string[percent:string.find("%")])
@@ -91,19 +93,19 @@ def mode_deter():
             string = open(f"{domain}.crawl.json", "r")
             string = string.read()
 
-        if "crawl_finished = 1" in string:
-            yesno = input("This domain has already been crawled to completion are you sure you want to crawl it again[y/N]: ")
-            yesno = yesno.lower()
-            yesno = yesno.strip()
-            yesno = yesno.strip("abcdefghijklmopqrstuvwxz")
+            if "crawl_finished = 1" in string:
+                yesno = input("This domain has already been crawled to completion are you sure you want to crawl it again[y/N]: ")
+                yesno = yesno.lower()
+                yesno = yesno.strip()
+                yesno = yesno.strip("abcdefghijklmopqrstuvwxz")
 
-            if yesno == "n":
-                exit()
-            elif yesno == "y":
-                pass
-            else:
-                print("invalid input")
-                exit()
+                if yesno == "n":
+                    exit()
+                elif yesno == "y":
+                    pass
+                else:
+                    print("invalid input")
+                    exit()
 
 
 
@@ -145,13 +147,13 @@ def main_crawl(url):
     global emails
     global links
     global urls
-    global directorys
+    global directories
     global lvl
 
     if lvl == 0:
         emails = []
         links = []
-        directorys = []
+        directories = []
         urls = []
         place_holder = []
         lvl = lvl + 1
@@ -167,7 +169,7 @@ def main_crawl(url):
         print("[-] Exiting...")
         output_file = open(f"{domain}.crawl.json", "a")
         output_file.write("crawl_finished = 0\n\n")
-        crawl_out(links, directorys, emails)
+        crawl_out(links, directories, emails)
         exit()
 
     soup = BeautifulSoup(reqs.text, 'html.parser')
@@ -189,28 +191,28 @@ def main_crawl(url):
         elif re.search("http*", href) != None:
             check_href = urlparse(href).netloc
             if check_href == domain:
-                directorys.append(href)
-                clean_list(directorys)
+                directories.append(href)
+                clean_list(directories)
             elif check_href != domain:
                 links.append(href)
                 clean_list(links)
         else:
             slash = re.search("^/", href)
             if slash:
-                directorys.append(href)
-                clean_list(directorys)
+                directories.append(href)
+                clean_list(directories)
             else:
                 href = "/" + href
-                directorys.append(href)
-                clean_list(directorys)
+                directories.append(href)
+                clean_list(directories)
 
-    directorys_json = json.dumps(directorys, indent = 6)
+    directories_json = json.dumps(directories, indent = 6)
     emails_json = json.dumps(emails, indent = 6)
     links_json = json.dumps(links, indent = 6)
 
     output_file = open(f"{domain}.crawl.json", "w")
 
-    output_file.write(f"directorys = {directorys_json}\n")
+    output_file.write(f"directories = {directories_json}\n")
     output_file.write("\n")
     output_file.write(f"emails = {emails_json}\n")
     output_file.write("\n")
@@ -218,16 +220,16 @@ def main_crawl(url):
     output_file.write("\n")
 
 # crawl discovered web pages
-def decend(directorys):
+def decend(directories):
 
-    length = len(directorys[0])
-    for href in directorys:
+    length = len(directories[0])
+    for href in directories:
 
         if domain in href:
             new_url = f"{href}"
 
             print(f'{new_url: <{length}}', end="\r")
-            clean_list(directorys)
+            clean_list(directories)
             main_crawl(new_url)
 
             length=(len(new_url))
@@ -236,7 +238,7 @@ def decend(directorys):
             new_url = f"{url}{href}"
 
             print(f'{new_url: <{length}}', end="\r")
-            clean_list(directorys)
+            clean_list(directories)
             main_crawl(new_url)
 
             length=(len(new_url))
@@ -247,8 +249,8 @@ def decend(directorys):
 
 
 # print crawled output
-def crawl_out(links, directorys, emails):
-    lists = [links, directorys, emails]
+def crawl_out(links, directories, emails):
+    lists = [links, directories, emails]
     for x in lists:
         if x == links:
             print("")
@@ -256,10 +258,10 @@ def crawl_out(links, directorys, emails):
             n = len(links)
             print(f"[+] count: {n}")
 
-        elif x == directorys:
+        elif x == directories:
             print("")
-            print("[+] directorys")
-            n = len(directorys)
+            print("[+] directories")
+            n = len(directories)
             print(f"[+] count: {n}")
 
         elif x == emails:
@@ -276,27 +278,32 @@ def main_brute(length, words, url):
     brute_forced_dirs = []
     count = 0
     for directory in words:
-        directory = directory.replace('\n', '')
-        test_url = (url + directory)
-        req_url = requests.get(test_url)
-        count = count + 1
+        try:
+            directory = directory.replace('\n', '')
+            test_url = (url + directory)
+            req_url = requests.get(test_url)
+            count = count + 1
 
-        if req_url.status_code != 404:
-            brute_forced_dirs.append(test_url)
-            print(f"[{req_url.status_code}] {req_url.url}")
+            if req_url.status_code != 404:
+                brute_forced_dirs.append(test_url)
+                print(f"[{req_url.status_code}] {req_url.url}")
 
-        else:
-            print(f'{test_url: <{length}}', end="\r")
-            length=len(test_url)
+            else:
+                print(f'{test_url: <{length}}', end="\r")
+                length=len(test_url)
 
-    print("\n")
+
+        except KeyboardInterrupt:
+            print("\n[-] KeyboardInterrupt")
+            print("[-] Exiting")
+            break
 
     brute_forced_dirs = json.dumps(brute_forced_dirs, indent = 6)
     output_file = open(f"{domain}.brute.json", "a")
     line_sum = sum(1 for line in open(args.wordlist))
     decimal = count/line_sum
     decimal = int(decimal * 100)
-    output_file.write(f"wordlist = {args.wordlist} {decimal}% Completed\nbrute_forced_dirs = {brute_forced_dirs}\n")
+    output_file.write(f"wordlist = {os.path.abspath(args.wordlist)} {decimal}% Completed\nbrute_forced_dirs = {brute_forced_dirs}\n")
     output_file.write("\n")
 
 # edit user supplied url to avoid errors
@@ -317,8 +324,8 @@ if mode == "crawl":
     url_fix(mode)
     exceptions(url, mode)
     main_crawl(url)
-    decend(directorys)
-    crawl_out(links, directorys, emails)
+    decend(directories)
+    crawl_out(links, directories, emails)
 
 elif mode == "brute":
     url_fix(mode)
